@@ -522,7 +522,10 @@ def infer_tree():
 
 
 def merge_base_fork_point(b, u):
-    return popen_git("merge-base", "--fork-point", "--", u, b).strip()
+    try:
+        return popen_git("merge-base", "--fork-point", "--", u, b).strip()
+    except MacheteException:
+        return None
 
 
 def fork_point(b):
@@ -530,12 +533,10 @@ def fork_point(b):
         raise MacheteException("'%s' is not a local branch" % b)
 
     other_branches = excluding(get_all_branches(), [b])
-    for ub in other_branches:
-        merge_base_fork_point(b, ub)
-
-    adjusted_reflogs_other_branches = sum(map(adjusted_reflog, other_branches), [])
+    fork_point_candidates = filter(None, [merge_base_fork_point(b, u) for u in other_branches])
+    
     for sha in log_shas(b):
-        if sha in adjusted_reflogs_other_branches:
+        if sha in fork_point_candidates:
             return sha
     raise MacheteException("Cannot find fork point for branch '%s'" % b)
 
